@@ -3,10 +3,14 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, ConfusionMatrixDisplay, make_scorer, recall_score
 import matplotlib.pyplot as plt
+from menu import menu
+import pandas as pd
 
 
 def carregar_dados():
     df = load_data()
+    if 'id' in df.columns: # ignora o id para não interferir no modelo
+        df.drop(columns=['id'], inplace=True)
     return df
 
 
@@ -48,19 +52,21 @@ def buscar_melhores_parametros(x_train, y_train):
     busca dos melhores hiperparâmetros para a decision tree, focando no recall da classe ruim (classe 0)
     """
     param_grid = {
-        'max_depth': [3, 4, 5, 6, None],
+        'max_depth': [1, 2, 3, 4, None],
+        'min_samples_leaf': [1, 2, 5, 10],
         'min_samples_split': [2, 5, 10],
-        'min_samples_leaf': [1, 5, 10],
-        'criterion': ['gini', 'entropy']
+        'criterion': ['gini', 'entropy'],
+        'class_weight': [None, 'balanced'],
     }
 
     grid_search = GridSearchCV(
         DecisionTreeClassifier(random_state=42),
         param_grid,
         cv=5,
-        scoring=make_scorer(recall_classe_ruim),
+        scoring=make_scorer(recall_classe_ruim), # resultado esperado: menor numero de erros na classe 0 (ruim)
         n_jobs=-1
     )
+
 
     grid_search.fit(x_train, y_train)
 
@@ -93,6 +99,17 @@ def avaliar_modelo(modelo, x_test, y_test):
     disp.plot(cmap='Blues')
     plt.show()
 
+def classificar_entrada_usuario(modelo):
+    dados_usuario = menu()
+
+    df_entrada = pd.DataFrame([dados_usuario])
+
+    predicao = modelo.predict(df_entrada)[0]
+
+    if predicao == 0:
+        print("Resultado da classificação: Risco de crédito RUIM")
+    else:
+        print("Resultado da classificação: Risco de crédito BOM")
 
 def main():
     df = carregar_dados()
@@ -106,6 +123,8 @@ def main():
     melhor_modelo = buscar_melhores_parametros(x_train, y_train)
 
     avaliar_modelo(melhor_modelo, x_test, y_test)
+    
+    classificar_entrada_usuario(melhor_modelo)
 
 
 if __name__ == "__main__":
